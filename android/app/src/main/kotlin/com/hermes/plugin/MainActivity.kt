@@ -328,8 +328,8 @@ class MainActivity : FlutterActivity() {
         } catch (e: Exception) {
             // Fallback: open all files access settings
             try {
-                val intent = Intent(Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION)
-                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            val intent = Intent(Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION)
+            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                 startActivity(intent)
                 result.success(false)
             } catch (e2: Exception) {
