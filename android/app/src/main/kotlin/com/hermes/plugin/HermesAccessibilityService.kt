@@ -97,10 +97,10 @@ class HermesAccessibilityService : AccessibilityService() {
                             android.view.Display.DEFAULT_DISPLAY,
                             { it.run() },
                             object : AccessibilityService.TakeScreenshotCallback {
-                                override fun onScreenshotTaken(screenshot: AccessibilityService.ScreenshotResult) {
+                                override fun onSuccess(result: AccessibilityService.ScreenshotResult) {
                                     try {
-                                        val buffer = screenshot.hardwareBuffer
-                                        val bitmap = Bitmap.wrapHardwareBuffer(buffer, screenshot.colorSpace)
+                                        val buffer = result.hardwareBuffer
+                                        val bitmap = Bitmap.wrapHardwareBuffer(buffer, result.colorSpace)
                                         buffer?.close()
                                         if (bitmap != null) {
                                             val stream = java.io.ByteArrayOutputStream()
@@ -111,12 +111,11 @@ class HermesAccessibilityService : AccessibilityService() {
                                         } else {
                                             handler.post { channel?.invokeMethod("screenshotError", "bitmap is null") }
                                         }
-                                        screenshot.close()
                                     } catch (e: Exception) {
                                         handler.post { channel?.invokeMethod("screenshotError", e.message) }
                                     }
                                 }
-                                override fun onScreenshotError(errorCode: Int) {
+                                override fun onError(errorCode: Int) {
                                     handler.post { channel?.invokeMethod("screenshotError", "errorCode: $errorCode") }
                                 }
                             }
