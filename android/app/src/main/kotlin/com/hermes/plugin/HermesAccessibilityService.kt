@@ -63,7 +63,7 @@ class HermesAccessibilityService : AccessibilityService() {
                 }
                 "pressBack" -> result.success(performGlobalAction(GLOBAL_ACTION_BACK))
                 "pressHome" -> result.success(performGlobalAction(GLOBAL_ACTION_HOME))
-                "pressRecent" -> result.success(performGlobalAction(GLOBAL_ACTION_RECENT_APPS))
+                "pressRecent" -> result.success(performGlobalAction(GLOBAL_ACTION_RECENTS))
                 "getScreenContent" -> result.success(getScreenContent())
                 "findElement" -> {
                     val text = call.argument<String>("text") ?: ""
@@ -84,14 +84,13 @@ class HermesAccessibilityService : AccessibilityService() {
     }
 
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
-        // Forward events to Flutter if needed
         event?.let {
             val args = hashMapOf<String, Any?>(
-                "eventType" => it.eventType.toString(),
-                "packageName" => it.packageName?.toString(),
-                "className" => it.className?.toString(),
-                "text" -> it.text?.joinToString(" "),
-                "description" -> it.contentDescription?.toString()
+                "eventType" to it.eventType.toString(),
+                "packageName" to it.packageName?.toString(),
+                "className" to it.className?.toString(),
+                "text" to it.text?.joinToString(" "),
+                "description" to it.contentDescription?.toString()
             )
             channel?.invokeMethod("onAccessibilityEvent", args)
         }
@@ -161,16 +160,16 @@ class HermesAccessibilityService : AccessibilityService() {
     }
 
     private fun nodeToMap(node: AccessibilityNodeInfo): Map<String, Any?> {
+        val rect = android.graphics.Rect()
+        node.getBoundsInScreen(rect)
         val map = mutableMapOf<String, Any?>(
             "className" to node.className?.toString(),
             "text" to node.text?.toString(),
             "contentDescription" to node.contentDescription?.toString(),
             "isClickable" to node.isClickable,
             "isEnabled" to node.isEnabled,
-            "bounds" to node.getBoundsInScreen(android.graphics.Rect()).let { rect ->
-                mapOf("left" to rect.left, "top" to rect.top,
-                    "right" to rect.right, "bottom" to rect.bottom)
-            },
+            "bounds" to mapOf("left" to rect.left, "top" to rect.top,
+                "right" to rect.right, "bottom" to rect.bottom),
             "nodeId" to node.hashCode().toString()
         )
 
