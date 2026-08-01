@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Hermes Plugin</string>
+    <string name="accessibility_service_description">Hermes Plugin uses accessibility service to control your device for automation tasks. This includes tapping, swiping, scrolling, typing, and reading screen content.</string>
+</resources>
