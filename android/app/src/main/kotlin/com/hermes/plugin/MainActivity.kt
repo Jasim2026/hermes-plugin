@@ -146,7 +146,7 @@ class MainActivity : FlutterActivity() {
                 mapOf("xml" to xml, "success" to true)
             } else {
                 // Fallback: try reading from the default dump location
-                val fallback = Runtime.getRuntime().exec(arrayOf("cat", "/sdcard/window_dump.xml"))
+                val fallback = Runtime.getRuntime().exec(arrayOf("cat", "/storage/emulated/0/window_dump.xml"))
                 val fbReader = BufferedReader(InputStreamReader(fallback.inputStream))
                 val fbOutput = fbReader.readText()
                 fallback.waitFor()

@@ -18,7 +18,7 @@ class HermesService : Service() {
     companion object {
         const val CHANNEL_ID = "hermes_service"
         const val NOTIFICATION_ID = 1
-        const val CONTROL_DIR = "/sdcard/hermes_plugin"
+        const val CONTROL_DIR = "/storage/emulated/0/hermes_plugin"
         const val CONTROL_FILE = "control.txt"
         const val RESPONSE_FILE = "response.txt"
 

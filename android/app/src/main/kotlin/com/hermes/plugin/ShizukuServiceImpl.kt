@@ -27,14 +27,14 @@ class ShizukuService(private val context: Context) : OnRequestPermissionResultLi
 
         // Path allowlist — only app-specific directories
         private val ALLOWED_READ_PATHS = setOf(
-            "/sdcard/hermes_plugin/",
-            "/sdcard/hermes_screenshot.png",
+            "/storage/emulated/0/hermes_plugin/",
+            "/storage/emulated/0/hermes_screenshot.png",
             "/data/local/tmp/"
         )
 
         // Paths that rm is allowed to delete
         private val ALLOWED_RM_PATHS = setOf(
-            "/sdcard/hermes_screenshot.png",
+            "/storage/emulated/0/hermes_screenshot.png",
             "/data/local/tmp/"
         )
 
