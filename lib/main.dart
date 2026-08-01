@@ -40,7 +40,7 @@ class HermesPluginApp extends StatelessWidget {
           surface: const Color(0xFF141420),
           surfaceContainerHighest: const Color(0xFF1A1A2E),
         ),
-        cardTheme: CardThemeData(
+        cardTheme: CardTheme(
           color: const Color(0xFF16162A),
           elevation: 0,
           shape: RoundedRectangleBorder(
