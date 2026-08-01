@@ -55,7 +55,7 @@ class ShizukuService(private val context: Context) : OnRequestPermissionResultLi
                 "checkShizukuPermission" -> result.success(checkShizukuPermissionDirect())
                 "requestPermission" -> {
                     requestPermission()
-                    result.success(true)
+                    result.success(false) // async — actual result comes via onShizukuEvent
                 }
                 "execCommand" -> {
                     val command = call.argument<String>("command") ?: ""
@@ -96,6 +96,14 @@ class ShizukuService(private val context: Context) : OnRequestPermissionResultLi
             isConnected = checkShizukuRunning()
             if (isConnected) {
                 isAuthorized = Shizuku.checkSelfPermission() == android.content.pm.PackageManager.PERMISSION_GRANTED
+            }
+            // Send state to Flutter so UI updates when binder arrives
+            handler.post {
+                channel?.invokeMethod("onShizukuEvent", mapOf(
+                    "type" to "state",
+                    "connected" to isConnected,
+                    "authorized" to isAuthorized
+                ))
             }
         } catch (e: Exception) {
             isConnected = false

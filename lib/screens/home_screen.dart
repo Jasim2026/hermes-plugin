@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import '../main.dart';
 import '../models/command.dart';
 import '../services/websocket_server.dart';
+import '../services/shizuku_service.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -18,6 +19,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   final List<String> _logs = [];
   final Set<int> _expandedLogs = {};
   StreamSubscription<ServerEvent>? _serverSub;
+  StreamSubscription<ShizukuEvent>? _shizukuSub;
 
   // Permission tracking
   bool _appInfoDone = false;
@@ -44,6 +46,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     _listenToServer();
+    _listenToShizuku();
     WidgetsBinding.instance.addPostFrameCallback((_) => _checkPermissions());
   }
 
@@ -79,6 +82,21 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           case 'error':
             _addLog('Server error: ${event.error}');
             break;
+        }
+      });
+    });
+  }
+
+  void _listenToShizuku() {
+    _shizukuSub = serviceControl.shizuku.events.listen((event) {
+      setState(() {
+        if (event.type == 'state') {
+          // State update from Kotlin — update both local and service control
+          _shizukuDone = serviceControl.shizukuAuthorized;
+        } else if (event.type == 'permission') {
+          final granted = event.message == 'granted';
+          _shizukuDone = granted;
+          _addLog(granted ? 'Shizuku permission granted' : 'Shizuku permission denied');
         }
       });
     });
@@ -338,6 +356,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     _serverSub?.cancel();
+    _shizukuSub?.cancel();
     super.dispose();
   }
 
@@ -837,7 +856,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       // (prevents flaky system checks from un-ticking granted permissions)
       if (enabled) _accessibilityDone = true;
       if (enabled) _appInfoDone = true;
-      if (shizukuAuth) _shizukuDone = true;
+      // For Shizuku: always update from actual check (can go true→false if revoked)
+      _shizukuDone = shizukuAuth;
     });
   }
 }

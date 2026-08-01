@@ -54,7 +54,8 @@ class ShizukuService {
   /// Request Shizuku permission
   Future<bool> requestPermission() async {
     try {
-      _authorized = await _channel.invokeMethod('requestPermission');
+      await _channel.invokeMethod('requestPermission');
+      // Don't set _authorized here — actual result comes via onShizukuEvent
       return _authorized;
     } catch (e) {
       return false;
@@ -195,8 +196,19 @@ class ShizukuService {
   Future<dynamic> _handleMethodCall(MethodCall call) async {
     switch (call.method) {
       case 'onShizukuEvent':
+        final type = call.arguments['type'] as String? ?? 'unknown';
+        if (type == 'state') {
+          // State update from Kotlin (binder received / permission result)
+          _connected = call.arguments['connected'] as bool? ?? false;
+          _authorized = call.arguments['authorized'] as bool? ?? false;
+        } else {
+          // Permission grant/denied result
+          if (type == 'permission') {
+            _authorized = call.arguments['message'] == 'granted';
+          }
+        }
         final event = ShizukuEvent(
-          type: call.arguments['type'] as String? ?? 'unknown',
+          type: type,
           message: call.arguments['message'] as String?,
         );
         _eventController.add(event);
