@@ -1,104 +1,114 @@
-# hermes_plugin
+# Hermes Plugin
 
-Hermes Plugin — Android automation bridge for [Hermes AI Agent](https://github.com/Jasim2026/hermes-agent).
+Flutter Android app for device automation — accessibility gestures + Shizuku root access + WebSocket bridge for Hermes agent control.
 
-## What it does
+## Features
 
-This app acts as a bridge between Hermes (running in Termux) and Android's system capabilities:
+### Core
+- **WebSocket Server** (`ws://127.0.0.1:8765`) — real-time command/response with Hermes agent
+- **Accessibility Service** — tap, long press, swipe, scroll, type text, get screen content, find/click elements
+- **Shizuku Integration** — screenshots, shell commands, volume/ringer control, device info
+- **File-based Signaling** — Kotlin FileObserver watches `/sdcard/hermes_plugin/control.txt` for agent commands
 
-- **Screenshots** via Shizuku (shell `screencap`)
-- **Screen control** via AccessibilityService (tap, swipe, scroll, type)
-- **System buttons** (back, home, recent apps)
-- **Volume & mode** (silent/vibrate/sound)
-- **App launching** by package name
-- **Screen content** reading via accessibility tree
+### Commands (35)
+| Category | Commands |
+|----------|----------|
+| Navigation | `press_home`, `press_back`, `press_recent` |
+| Gestures | `tap`, `long_press`, `swipe`, `scroll` |
+| Input | `type_text`, `clear_input_field` |
+| Screen | `screen_on`, `screen_off`, `screenshot`, `screenshot_cached` |
+| UI | `get_screen_content`, `find_element`, `click_element`, `ui_automator_dump` |
+| Volume | `volume_up`, `volume_down`, `set_volume`, `set_mode` |
+| Apps | `open_app`, `get_installed_apps`, `get_app_state` |
+| Info | `get_display_info`, `get_device_info`, `get_battery_info`, `health` |
+| Tier 2 | `batch`, `set_webhook`, `stream_events`, `get_input_methods` |
+| Meta | `ping`, `help` |
+
+### UI
+- **Dark theme** with Inter font and purple accent
+- **Permission modal** — Accessibility + Notification + Shizuku (optional)
+- **Status dashboard** — WebSocket, clients, accessibility, Shizuku status pills
+- **Quick actions** — 12 one-tap buttons (Home, Back, Recent, Vol+/-, Screen On/Off, Screenshot, Scroll, Clear)
+- **Activity log** — monospace terminal panel with copy/clear
+
+### Screen On/Off
+- Uses accessibility service first (PowerManager wake lock / goToSleep)
+- Falls back to Shizuku shell `input keyevent` only if accessibility fails
+- Response includes `via` field indicating which method was used
+
+### Error Knowledge Base
+- SQLite database at `/root/hermes-mini/errors.db` (28 errors, 6 patterns)
+- Search tool: `err_search.py` — keyword search across error signatures, fixes, and patterns
+- Universal DB manager: `db.py` — 22 actions for any SQLite database
 
 ## Architecture
 
 ```
-┌─────────────┐     WebSocket      ┌──────────────────┐
-│   Hermes    │ ◄───────────────► │  Hermes Plugin   │
-│  (Termux)   │   ws://127.0.0.1:8765  │  (Flutter App) │
-└─────────────┘                     └───────┬──────────┘
-                                            │
-                              ┌─────────────┼─────────────┐
-                              │             │             │
-                        ┌─────▼─────┐ ┌─────▼─────┐ ┌────▼────┐
-                        │AccService │ │  Shizuku  │ │ Android │
-                        │(tap,scroll│ │(screenshot│ │ (shell) │
-                        │ read tree)│ │  shell)   │ │         │
-                        └───────────┘ └───────────┘ └─────────┘
+Hermes Agent (Telegram)
+    ↓ WebSocket
+Flutter App (ws://127.0.0.1:8765)
+    ↓ MethodChannel
+Kotlin (AccessibilityService + ShizukuServiceImpl)
+    ↓
+Android APIs
 ```
 
-**Why WebSocket?**
-- Bidirectional: Hermes sends commands, plugin sends responses
-- No permission needed for localhost
-- Low latency (~1ms)
-- Can stream screenshot data back
-- Language-agnostic (Hermes is Python)
-
-## Commands
-
-| Command | Description | Requires |
-|---------|-------------|----------|
-| `screenshot` | Capture screen as PNG | Shizuku |
-| `tap` | Tap at (x, y) | Accessibility |
-| `long_press` | Long press at (x, y) | Accessibility |
-| `swipe` | Swipe from (x1,y1) to (x2,y2) | Accessibility |
-| `scroll` | Scroll in direction | Accessibility |
-| `type_text` | Input text into focused field | Accessibility |
-| `press_back` | Press back button | Accessibility |
-| `press_home` | Press home button | Accessibility |
-| `press_recent` | Press recent apps | Accessibility |
-| `volume_up` | Increase volume | Shizuku |
-| `volume_down` | Decrease volume | Shizuku |
-| `set_volume` | Set volume level | Shizuku |
-| `set_mode` | Set silent/vibrate/normal | Shizuku |
-| `screen_on` | Turn screen on | Shizuku |
-| `screen_off` | Turn screen off | Shizuku |
-| `open_app` | Open app by package name | Accessibility |
-| `get_screen_content` | Read accessibility tree | Accessibility |
-| `find_element` | Find UI element by text | Accessibility |
-| `click_element` | Click element by node ID | Accessibility |
-
-## Command Format (JSON)
-
-```json
-// Request
-{
-  "id": "uuid-1234",
-  "command": "tap",
-  "params": {"x": 540, "y": 1200}
-}
-
-// Response
-{
-  "id": "uuid-1234",
-  "success": true,
-  "data": {"tapped": true, "x": 540, "y": 1200}
-}
-```
-
-## Requirements
-
-- Android 7.0+ (API 24)
-- Shizuku installed and running (for screenshots/volume)
-- Accessibility service enabled (for screen control)
-
-## Setup
-
-1. Install [Shizuku](https://github.com/RikkaApps/Shizuku) from Play Store
-2. Install Hermes Plugin APK
-3. Enable Hermes Plugin in Accessibility Settings
-4. Grant Shizuku permission to Hermes Plugin
-5. Start Shizuku (via wireless debugging or root)
+- **Flutter** — UI, WebSocket server, command routing
+- **Kotlin** — Accessibility gestures, Shizuku shell, file observer, permission handling
+- **ShizukuServiceImpl** — shell command allowlist, path validation, background thread execution
+- **HermesAccessibilityService** — gesture dispatch, node tree traversal, screen on/off
 
 ## Build
 
-This project uses GitHub Actions for CI/CD. Push to `main` or create a tag to trigger builds.
+```bash
+# Local
+cd /tmp/hermes-plugin
+flutter build apk --debug
 
-APKs are available as build artifacts.
+# CI
+# GitHub Actions: .github/workflows/build.yml
+# Triggers on push to main
+# Builds debug APK, uploads as artifact
+```
 
-## License
+## Project Structure
 
-MIT
+```
+hermes-plugin/
+├── android/app/src/main/kotlin/com/hermes/plugin/
+│   ├── MainActivity.kt          — Lifecycle channel, permission handling
+│   ├── HermesService.kt         — Foreground service + FileObserver
+│   ├── HermesAccessibilityService.kt — Gestures, node tree, screen on/off
+│   └── ShizukuServiceImpl.kt    — Shell commands, volume, ringer, screenshots
+├── lib/
+│   ├── main.dart                — App entry, theme
+│   ├── screens/home_screen.dart — Dashboard UI, permission modal
+│   ├── services/
+│   │   ├── service_control.dart — WS server + permission helpers
+│   │   ├── command_handler.dart — 35 command handlers + help docs
+│   │   ├── accessibility_bridge.dart — Dart→Kotlin accessibility API
+│   │   ├── shizuku_service.dart — Dart→Kotlin Shizuku API
+│   │   └── websocket_server.dart — WebSocket server
+│   └── models/command.dart      — Command/Response models
+├── assets/fonts/Inter-Variable.ttf
+└── .github/workflows/build.yml  — CI
+```
+
+## Agent-Side Tools
+
+| Tool | Description |
+|------|-------------|
+| `hermes_ctl.py` | Agent writes commands to `/sdcard/hermes_plugin/control.txt` |
+| `db.py` | Universal SQLite manager (22 actions) |
+| `err_search.py` | Error knowledge base search |
+| `errors.db` | Error patterns + verified fixes |
+| `populate_errors*.py` | DB population scripts |
+
+## Permissions
+
+| Permission | Required | Purpose |
+|------------|----------|---------|
+| Accessibility | Yes | Gestures, UI tree, screen on/off |
+| Notification | Yes | Alert delivery |
+| QUERY_ALL_PACKAGES | Yes | List installed apps |
+| Shizuku | Optional | Shell commands, screenshots, volume |

@@ -96,7 +96,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   Future<void> _checkPermissions() async {
     final accessibilityEnabled = await serviceControl.accessibility.isEnabled();
     final notificationEnabled = await serviceControl.isNotificationPermissionGranted();
-    final shizukuAuthorized = await serviceControl.shizukuService.checkPermission();
+    final shizukuAuthorized = await serviceControl.shizuku.checkPermission();
 
     _accessibilityDone = accessibilityEnabled;
     _appInfoDone = accessibilityEnabled;
@@ -829,7 +829,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
   Future<void> _refreshStatus() async {
     final enabled = await serviceControl.accessibility.isEnabled();
-    final shizukuAuth = await serviceControl.shizukuService.checkPermission();
+    final shizukuAuth = await serviceControl.shizuku.checkPermission();
     setState(() {
       serviceControl.accessibilityEnabled = enabled;
       _accessibilityDone = enabled;

@@ -23,6 +23,7 @@ class ServiceControl {
   AccessibilityBridge get accessibility => _accessibility;
   bool get shizukuConnected => _shizuku.isConnected;
   bool get shizukuAuthorized => _shizuku.isAuthorized;
+  ShizukuService get shizuku => _shizuku;
 
   bool _accessibilityEnabled = false;
 
