@@ -65,27 +65,22 @@ class ShizukuService {
   /// Capture screenshot via Shizuku shell command
   Future<String?> captureScreenshot() async {
     try {
-      // Use screencap command via Shizuku
+      // Use /data/local/tmp/ — shell can always write here (unlike /sdcard/ on Android 14+)
+      const tmpPath = '/data/local/tmp/hermes_screenshot.png';
       final result = await _channel.invokeMethod('execCommand', {
-        'command': 'screencap -p /sdcard/hermes_screenshot.png',
+        'command': 'screencap -p $tmpPath',
       });
       final output = result?.toString() ?? '';
       if (!output.startsWith('ERROR:')) {
-        // Get the file path from Kotlin (validates path is safe)
-        final filePath = await _channel.invokeMethod('readFile', {
-          'path': '/sdcard/hermes_screenshot.png',
-        });
-        if (filePath != null) {
-          // Read file directly via Dart IO (avoids Binder 1MB limit)
-          final file = File(filePath.toString());
-          if (await file.exists()) {
-            final bytes = await file.readAsBytes();
-            // Delete temp file
-            await _channel.invokeMethod('execCommand', {
-              'command': 'rm /sdcard/hermes_screenshot.png',
-            });
-            return base64Encode(bytes);
-          }
+        // Read file directly via Dart IO (avoids Binder 1MB limit)
+        final file = File(tmpPath);
+        if (await file.exists()) {
+          final bytes = await file.readAsBytes();
+          // Delete temp file
+          await _channel.invokeMethod('execCommand', {
+            'command': 'rm $tmpPath',
+          });
+          return base64Encode(bytes);
         }
       }
       return null;
