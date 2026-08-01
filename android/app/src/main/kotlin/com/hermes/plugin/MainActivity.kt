@@ -65,7 +65,12 @@ class MainActivity : FlutterActivity() {
                     "getDisplayInfo" -> result.success(getDisplayInfo())
 
                     // Tier 2
-                    "uiAutomatorDump" -> result.success(uiAutomatorDump())
+                    "uiAutomatorDump" -> {
+                        Thread {
+                            val dumpResult = uiAutomatorDump()
+                            runOnUiThread { result.success(dumpResult) }
+                        }.start()
+                    }
                     "getInputMethods" -> result.success(getInputMethods())
                     "setInputMethod" -> {
                         val imeId = call.argument<String>("imeId") ?: ""

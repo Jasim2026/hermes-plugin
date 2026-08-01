@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:io';
 import 'package:flutter/services.dart';
 import '../models/command.dart';
 import 'websocket_server.dart';
@@ -7,12 +6,9 @@ import 'command_handler.dart';
 import 'accessibility_bridge.dart';
 import 'shizuku_service.dart';
 
-/// Handles start/stop via file-based signaling to Kotlin HermesService
+/// Manages WebSocket server, permissions, and command handling
 class ServiceControl {
-  static const _channel = MethodChannel('com.hermes.plugin/service_control');
-  static const String _controlDir = '/sdcard/hermes_plugin';
-  static const String _controlFile = 'control.txt';
-  static const String _responseFile = 'response.txt';
+  static const _lifecycleChannel = MethodChannel('com.hermes.plugin/lifecycle');
 
   final WebSocketServer _server = WebSocketServer();
   final AccessibilityBridge _accessibility = AccessibilityBridge();
@@ -21,6 +17,7 @@ class ServiceControl {
 
   bool get isRunning => _server.isRunning;
   WebSocketServer get server => _server;
+  CommandHandler? get handler => _handler;
   bool get accessibilityEnabled => _accessibilityEnabled;
   set accessibilityEnabled(bool val) => _accessibilityEnabled = val;
   AccessibilityBridge get accessibility => _accessibility;
@@ -29,9 +26,7 @@ class ServiceControl {
 
   bool _accessibilityEnabled = false;
 
-  ServiceControl() {
-    _channel.setMethodCallHandler(_handleMethodCall);
-  }
+  ServiceControl();
 
   Future<void> init() async {
     _handler = CommandHandler(_accessibility, _shizuku);
@@ -40,100 +35,37 @@ class ServiceControl {
   }
 
   // ========================
-  // FILE-BASED CONTROL
+  // SERVER CONTROL
   // ========================
-
-  /// Send command via file signal
-  Future<String> _sendCommand(String command) async {
-    try {
-      final dir = Directory(_controlDir);
-      if (!await dir.exists()) {
-        await dir.create(recursive: true);
-      }
-
-      // Write command
-      final cmdFile = File('$_controlDir/$_controlFile');
-      await cmdFile.writeAsString(command);
-
-      // Poll for response (max 5 seconds)
-      final respFile = File('$_controlDir/$_responseFile');
-      for (var i = 0; i < 50; i++) {
-        await Future.delayed(const Duration(milliseconds: 100));
-        if (await respFile.exists()) {
-          final response = await respFile.readAsString();
-          if (response.isNotEmpty && response != 'IDLE') {
-            return response.trim();
-          }
-        }
-      }
-      return 'TIMEOUT';
-    } catch (e) {
-      return 'ERROR:$e';
-    }
-  }
 
   Future<void> startServer() async {
-    await _sendCommand('START');
-  }
-
-  Future<void> stopServer() async {
-    await _sendCommand('STOP');
-  }
-
-  // ========================
-  // METHOD CHANNEL HANDLER
-  // ========================
-
-  Future<dynamic> _handleMethodCall(MethodCall call) async {
-    switch (call.method) {
-      case 'startWsServer':
-        final port = call.arguments['port'] as int? ?? 8765;
-        await _startServer(port);
-        return true;
-      case 'stopWsServer':
-        await _stopServer();
-        return true;
-      default:
-        return false;
-    }
-  }
-
-  Future<void> _startServer(int port) async {
     if (_server.isRunning) return;
+    _handler ??= CommandHandler(_accessibility, _shizuku);
 
     // Wire up event streaming: CommandHandler → WS broadcast
-    _handler?.setEventSink((json) => _server.broadcastString(json));
+    _handler!.setEventSink((json) => _server.broadcastString(json));
 
     await _server.start(
-      port: port,
-      handler: (cmd) async {
-        if (_handler == null) {
-          return CommandResponse(
-            id: cmd.id,
-            success: false,
-            error: 'Handler not initialized',
-          );
-        }
-        return await _handler!.handle(cmd);
-      },
+      port: WebSocketServer.defaultPort,
+      handler: (cmd) async => await _handler!.handle(cmd),
     );
   }
 
-  Future<void> _stopServer() async {
+  Future<void> stopServer() async {
     if (!_server.isRunning) return;
     await _server.stop();
   }
 
   // ========================
-  // PERMISSION HELPERS
+  // PERMISSION HELPERS (use lifecycle channel)
   // ========================
 
   Future<void> openAppInfo() async {
     try {
-      await _channel.invokeMethod('openAppInfo');
+      await _lifecycleChannel.invokeMethod('openAppInfo');
     } catch (e) {
       try {
-        await _channel.invokeMethod('openSettings', {
+        await _lifecycleChannel.invokeMethod('openSettings', {
           'action': 'APPLICATION_DETAILS_SETTINGS',
           'data': 'package:com.hermes.plugin',
         });
@@ -143,7 +75,7 @@ class ServiceControl {
 
   Future<bool> isNotificationPermissionGranted() async {
     try {
-      return await _channel.invokeMethod('checkNotificationPermission') ?? true;
+      return await _lifecycleChannel.invokeMethod('checkNotificationPermission') ?? true;
     } catch (e) {
       return true;
     }
@@ -151,7 +83,7 @@ class ServiceControl {
 
   Future<bool> requestNotificationPermission() async {
     try {
-      return await _channel.invokeMethod('requestNotificationPermission') ?? false;
+      return await _lifecycleChannel.invokeMethod('requestNotificationPermission') ?? false;
     } catch (e) {
       return false;
     }

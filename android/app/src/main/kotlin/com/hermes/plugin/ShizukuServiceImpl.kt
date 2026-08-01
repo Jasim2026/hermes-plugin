@@ -59,13 +59,16 @@ class ShizukuService(private val context: Context) : OnRequestPermissionResultLi
                 }
                 "execCommand" -> {
                     val command = call.argument<String>("command") ?: ""
-                    val execResult = execCommand(command)
-                    result.success(execResult)
+                    // Run on background thread to avoid ANR (process.waitFor blocks)
+                    Thread {
+                        val execResult = execCommand(command)
+                        handler.post { result.success(execResult) }
+                    }.start()
                 }
                 "readFile" -> {
                     val path = call.argument<String>("path") ?: ""
-                    val bytes = readFile(path)
-                    result.success(bytes)
+                    val resultPath = readFile(path)
+                    result.success(resultPath)
                 }
                 "setVolume" -> {
                     val stream = call.argument<Int>("stream") ?: AudioManager.STREAM_MUSIC
@@ -165,7 +168,7 @@ class ShizukuService(private val context: Context) : OnRequestPermissionResultLi
         }
     }
 
-    private fun readFile(path: String): ByteArray? {
+    private fun readFile(path: String): String? {
         // Validate path — must be in allowed directories
         val canonicalPath = try {
             java.io.File(path).canonicalPath
@@ -177,7 +180,7 @@ class ShizukuService(private val context: Context) : OnRequestPermissionResultLi
         if (!allowed) return null
 
         return try {
-            java.io.File(canonicalPath).readBytes()
+            if (java.io.File(canonicalPath).exists()) canonicalPath else null
         } catch (e: Exception) {
             null
         }
@@ -204,11 +207,25 @@ class ShizukuService(private val context: Context) : OnRequestPermissionResultLi
 
     private fun setRingerMode(mode: Int): Boolean {
         return try {
-            val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
-            audioManager.ringerMode = mode
-            true
+            // Use Shizuku shell command for ringer mode (needs elevated privileges)
+            val cmd = when (mode) {
+                0 -> "cmd audio set-ringer-mode 0"  // silent
+                1 -> "cmd audio set-ringer-mode 1"  // vibrate
+                2 -> "cmd audio set-ringer-mode 2"  // normal
+                else -> return false
+            }
+            val process = Runtime.getRuntime().exec(cmd.trim().split("\\s+".toRegex()).toTypedArray())
+            process.waitFor()
+            process.exitValue() == 0
         } catch (e: Exception) {
-            false
+            // Fallback to AudioManager (may fail without DND permission)
+            try {
+                val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
+                audioManager.ringerMode = mode
+                true
+            } catch (e2: Exception) {
+                false
+            }
         }
     }
 

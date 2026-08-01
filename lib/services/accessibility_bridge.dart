@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 /// Bridge to Android AccessibilityService via MethodChannel
 class AccessibilityBridge {
   static const _channel = MethodChannel('com.hermes.plugin/accessibility');
+  static const _lifecycleChannel = MethodChannel('com.hermes.plugin/lifecycle');
 
   bool _connected = false;
   bool get isConnected => _connected;
@@ -27,7 +28,7 @@ class AccessibilityBridge {
   /// Check if accessibility service is enabled
   Future<bool> isEnabled() async {
     try {
-      _connected = await _channel.invokeMethod('checkAccessibilityEnabled');
+      _connected = await _lifecycleChannel.invokeMethod('getAccessibilityService');
       return _connected;
     } catch (e) {
       return false;
@@ -36,7 +37,19 @@ class AccessibilityBridge {
 
   /// Open accessibility settings
   Future<void> openSettings() async {
-    await _channel.invokeMethod('openAccessibilitySettings');
+    try {
+      await _lifecycleChannel.invokeMethod('openSettings', {
+        'action': 'android.settings.ACCESSIBILITY_SETTINGS',
+        'data': '',
+      });
+    } catch (e) {
+      // fallback: try direct intent
+      try {
+        await _lifecycleChannel.invokeMethod('openSettings', {
+          'action': 'android.settings.ACCESSIBILITY_SETTINGS',
+        });
+      } catch (e2) {}
+    }
   }
 
   /// Tap at screen coordinates

@@ -42,26 +42,26 @@ class HermesAccessibilityService : AccessibilityService() {
                     result.success(true)
                 }
                 "tap" -> {
-                    val x = call.argument<Double>("x")?.toFloat() ?: 0f
-                    val y = call.argument<Double>("y")?.toFloat() ?: 0f
+                    val x = call.argument<Number>("x")?.toFloat() ?: 0f
+                    val y = call.argument<Number>("y")?.toFloat() ?: 0f
                     result.success(performTap(x, y))
                 }
                 "longPress" -> {
-                    val x = call.argument<Double>("x")?.toFloat() ?: 0f
-                    val y = call.argument<Double>("y")?.toFloat() ?: 0f
+                    val x = call.argument<Number>("x")?.toFloat() ?: 0f
+                    val y = call.argument<Number>("y")?.toFloat() ?: 0f
                     result.success(performLongPress(x, y))
                 }
                 "swipe" -> {
-                    val x1 = call.argument<Double>("x1")?.toFloat() ?: 0f
-                    val y1 = call.argument<Double>("y1")?.toFloat() ?: 0f
-                    val x2 = call.argument<Double>("x2")?.toFloat() ?: 0f
-                    val y2 = call.argument<Double>("y2")?.toFloat() ?: 0f
-                    val duration = call.argument<Int>("durationMs") ?: 300
+                    val x1 = call.argument<Number>("x1")?.toFloat() ?: 0f
+                    val y1 = call.argument<Number>("y1")?.toFloat() ?: 0f
+                    val x2 = call.argument<Number>("x2")?.toFloat() ?: 0f
+                    val y2 = call.argument<Number>("y2")?.toFloat() ?: 0f
+                    val duration = call.argument<Number>("durationMs")?.toInt() ?: 300
                     result.success(performSwipe(x1, y1, x2, y2, duration))
                 }
                 "scroll" -> {
                     val direction = call.argument<String>("direction") ?: "down"
-                    val distance = call.argument<Double>("distance")?.toFloat() ?: 500f
+                    val distance = call.argument<Number>("distance")?.toFloat() ?: 500f
                     result.success(performScroll(direction, distance))
                 }
                 "typeText" -> {
@@ -166,7 +166,7 @@ class HermesAccessibilityService : AccessibilityService() {
         return nodeToMap(rootNode)
     }
 
-    private fun nodeToMap(node: AccessibilityNodeInfo): Map<String, Any?> {
+    private fun nodeToMap(node: AccessibilityNodeInfo, path: String = "0"): Map<String, Any?> {
         val rect = android.graphics.Rect()
         node.getBoundsInScreen(rect)
         val map = mutableMapOf<String, Any?>(
@@ -177,13 +177,14 @@ class HermesAccessibilityService : AccessibilityService() {
             "isEnabled" to node.isEnabled,
             "bounds" to mapOf("left" to rect.left, "top" to rect.top,
                 "right" to rect.right, "bottom" to rect.bottom),
-            "nodeId" to node.hashCode().toString()
+            "nodeId" to path
         )
 
         val children = mutableListOf<Map<String, Any?>>()
         for (i in 0 until node.childCount) {
             val child = node.getChild(i) ?: continue
-            children.add(nodeToMap(child))
+            children.add(nodeToMap(child, "${path}_${i}"))
+            child.recycle()
         }
         if (children.isNotEmpty()) {
             map["children"] = children
@@ -196,7 +197,9 @@ class HermesAccessibilityService : AccessibilityService() {
         val rootNode = rootInActiveWindow ?: return null
         val nodes = rootNode.findAccessibilityNodeInfosByText(text)
         return if (nodes != null && nodes.isNotEmpty()) {
-            nodeToMap(nodes[0])
+            val result = nodeToMap(nodes[0])
+            for (n in nodes) n.recycle()
+            result
         } else {
             null
         }
@@ -204,16 +207,21 @@ class HermesAccessibilityService : AccessibilityService() {
 
     private fun clickNodeById(nodeId: String): Boolean {
         val rootNode = rootInActiveWindow ?: return false
-        return clickNodeRecursive(rootNode, nodeId)
+        return clickNodeRecursive(rootNode, nodeId, "0")
     }
 
-    private fun clickNodeRecursive(node: AccessibilityNodeInfo, targetId: String): Boolean {
-        if (node.hashCode().toString() == targetId) {
+    private fun clickNodeRecursive(node: AccessibilityNodeInfo, targetId: String, currentPath: String): Boolean {
+        if (currentPath == targetId) {
             return node.performAction(AccessibilityNodeInfo.ACTION_CLICK)
         }
         for (i in 0 until node.childCount) {
             val child = node.getChild(i) ?: continue
-            if (clickNodeRecursive(child, targetId)) return true
+            val childPath = "${currentPath}_${i}"
+            if (clickNodeRecursive(child, targetId, childPath)) {
+                child.recycle()
+                return true
+            }
+            child.recycle()
         }
         return false
     }

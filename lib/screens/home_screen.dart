@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../main.dart';
+import '../models/command.dart';
 import '../services/websocket_server.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -11,7 +12,7 @@ class HomeScreen extends StatefulWidget {
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> {
+class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   bool _serverRunning = false;
   int _clientCount = 0;
   final List<String> _logs = [];
@@ -27,8 +28,18 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _listenToServer();
     WidgetsBinding.instance.addPostFrameCallback((_) => _checkPermissions());
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _permissionsChecked = false;
+      _checkPermissions();
+      _refreshStatus();
+    }
   }
 
   void _listenToServer() {
@@ -211,15 +222,17 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Future<void> _toggleServer() async {
     if (_serverRunning) {
-      // Stop server via control socket
       await serviceControl.stopServer();
-      _addLog('Server stop requested');
+      setState(() {
+        _serverRunning = false;
+        _clientCount = 0;
+      });
+      _addLog('Server stopped');
     } else {
-      // Start server via control socket
+      _addLog('Starting WebSocket server...');
       await serviceControl.startServer();
-      _addLog('Server start requested');
+      // Server state updates via event listener
     }
-    // Status will update via event listener
   }
 
   // ========================
@@ -244,6 +257,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _serverSub?.cancel();
     super.dispose();
   }
@@ -421,7 +435,26 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Future<void> _quickCmd(String command) async {
     _addLog('Sending: $command');
-    _addLog('Command queued — will execute when agent connects');
+    if (!_serverRunning) {
+      _addLog('Server not running — start it first');
+      return;
+    }
+    final h = serviceControl.handler;
+    if (h == null) {
+      _addLog('Handler not initialized');
+      return;
+    }
+    try {
+      final cmd = Command(id: 'quick_$command', command: command);
+      final response = await h.handle(cmd);
+      if (response.success) {
+        _addLog('OK: $command');
+      } else {
+        _addLog('FAIL: ${response.error}');
+      }
+    } catch (e) {
+      _addLog('ERROR: $e');
+    }
   }
 
   Widget _actionChip(String label, IconData icon, VoidCallback onTap) {

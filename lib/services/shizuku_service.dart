@@ -52,16 +52,21 @@ class ShizukuService {
       });
       final output = result?.toString() ?? '';
       if (!output.startsWith('ERROR:')) {
-        // Read the screenshot file
-        final bytes = await _channel.invokeMethod('readFile', {
+        // Get the file path from Kotlin (validates path is safe)
+        final filePath = await _channel.invokeMethod('readFile', {
           'path': '/sdcard/hermes_screenshot.png',
         });
-        if (bytes != null) {
-          // Delete temp file
-          await _channel.invokeMethod('execCommand', {
-            'command': 'rm /sdcard/hermes_screenshot.png',
-          });
-          return base64Encode(bytes);
+        if (filePath != null) {
+          // Read file directly via Dart IO (avoids Binder 1MB limit)
+          final file = File(filePath.toString());
+          if (await file.exists()) {
+            final bytes = await file.readAsBytes();
+            // Delete temp file
+            await _channel.invokeMethod('execCommand', {
+              'command': 'rm /sdcard/hermes_screenshot.png',
+            });
+            return base64Encode(bytes);
+          }
         }
       }
       return null;
