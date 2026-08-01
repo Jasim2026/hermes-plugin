@@ -19,9 +19,14 @@ class MainActivity : FlutterActivity() {
             init()
         }
 
-        // Initialize accessibility service channel
+        // Initialize accessibility service channel (may be null if service not yet connected)
         val accessibilityService = HermesAccessibilityService.instance
-        accessibilityService?.initChannel(flutterEngine)
+        if (accessibilityService != null) {
+            accessibilityService.initChannel(flutterEngine)
+        } else {
+            // Store engine for when service connects
+            HermesAccessibilityService.setPendingEngine(flutterEngine)
+        }
 
         // Lifecycle channel
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, CHANNEL)

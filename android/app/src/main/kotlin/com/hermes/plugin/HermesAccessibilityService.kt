@@ -16,6 +16,12 @@ class HermesAccessibilityService : AccessibilityService() {
         private const val CHANNEL = "com.hermes.plugin/accessibility"
         var instance: HermesAccessibilityService? = null
             private set
+        private var pendingEngine: FlutterEngine? = null
+
+        fun setPendingEngine(engine: FlutterEngine) {
+            pendingEngine = engine
+            instance?.let { it.initChannel(engine); pendingEngine = null }
+        }
     }
 
     private var channel: MethodChannel? = null
@@ -23,6 +29,7 @@ class HermesAccessibilityService : AccessibilityService() {
     override fun onServiceConnected() {
         super.onServiceConnected()
         instance = this
+        pendingEngine?.let { initChannel(it); pendingEngine = null }
     }
 
     fun initChannel(flutterEngine: FlutterEngine) {
