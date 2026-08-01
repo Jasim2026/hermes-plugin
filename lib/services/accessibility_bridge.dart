@@ -194,6 +194,20 @@ class AccessibilityBridge {
     }
   }
 
+  /// Capture screenshot via accessibility service (API 30+)
+  Future<String?> captureScreenshot() async {
+    try {
+      final completer = Completer<String?>();
+      _screenshotCompleter = completer;
+      await _channel.invokeMethod('takeScreenshot');
+      return await completer.future;
+    } catch (e) {
+      return null;
+    }
+  }
+
+  Completer<String?>? _screenshotCompleter;
+
   /// Open app by package name
   Future<bool> openApp(String packageName) async {
     try {
@@ -212,6 +226,19 @@ class AccessibilityBridge {
           Map<String, dynamic>.from(call.arguments),
         );
         _eventController.add(event);
+        break;
+      case 'screenshotResult':
+        final base64 = call.arguments as String?;
+        if (_screenshotCompleter != null && !_screenshotCompleter!.isCompleted) {
+          _screenshotCompleter!.complete(base64);
+          _screenshotCompleter = null;
+        }
+        break;
+      case 'screenshotError':
+        if (_screenshotCompleter != null && !_screenshotCompleter!.isCompleted) {
+          _screenshotCompleter!.complete(null);
+          _screenshotCompleter = null;
+        }
         break;
     }
   }

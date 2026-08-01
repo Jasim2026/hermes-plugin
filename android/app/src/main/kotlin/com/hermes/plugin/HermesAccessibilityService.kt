@@ -3,8 +3,11 @@ package com.hermes.plugin
 import android.accessibilityservice.AccessibilityService
 import android.accessibilityservice.GestureDescription
 import android.content.Intent
+import android.graphics.Bitmap
 import android.graphics.Path
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.view.accessibility.AccessibilityEvent
 import android.view.accessibility.AccessibilityNodeInfo
 import io.flutter.embedding.engine.FlutterEngine
@@ -25,6 +28,7 @@ class HermesAccessibilityService : AccessibilityService() {
     }
 
     private var channel: MethodChannel? = null
+    private val handler = Handler(Looper.getMainLooper())
 
     override fun onServiceConnected() {
         super.onServiceConnected()
@@ -87,6 +91,41 @@ class HermesAccessibilityService : AccessibilityService() {
                 }
                 "screenOn" -> result.success(screenOn())
                 "screenOff" -> result.success(screenOff())
+                "takeScreenshot" -> {
+                    if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R) {
+                        takeScreenshot(
+                            android.view.Display.DEFAULT_DISPLAY,
+                            { it.run() },
+                            object : AccessibilityService.TakeScreenshotCallback {
+                                override fun onScreenshotTaken(screenshot: AccessibilityService.ScreenshotResult) {
+                                    try {
+                                        val buffer = screenshot.hardwareBuffer
+                                        val bitmap = Bitmap.wrapHardwareBuffer(buffer, screenshot.colorSpace)
+                                        buffer?.close()
+                                        if (bitmap != null) {
+                                            val stream = java.io.ByteArrayOutputStream()
+                                            bitmap.compress(Bitmap.CompressFormat.PNG, 100, stream)
+                                            bitmap.recycle()
+                                            val base64 = android.util.Base64.encodeToString(stream.toByteArray(), android.util.Base64.NO_WRAP)
+                                            handler.post { channel?.invokeMethod("screenshotResult", base64) }
+                                        } else {
+                                            handler.post { channel?.invokeMethod("screenshotError", "bitmap is null") }
+                                        }
+                                        screenshot.close()
+                                    } catch (e: Exception) {
+                                        handler.post { channel?.invokeMethod("screenshotError", e.message) }
+                                    }
+                                }
+                                override fun onScreenshotError(errorCode: Int) {
+                                    handler.post { channel?.invokeMethod("screenshotError", "errorCode: $errorCode") }
+                                }
+                            }
+                        )
+                        result.success(true)
+                    } else {
+                        result.error("API_TOO_LOW", "takeScreenshot requires API 30+", null)
+                    }
+                }
                 else -> result.notImplemented()
             }
         }

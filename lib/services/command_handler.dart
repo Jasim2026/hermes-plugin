@@ -444,8 +444,8 @@ class CommandHandler {
       );
     }
 
-    // Take new screenshot
-    final base64Image = await _shizuku.captureScreenshot();
+    // Take new screenshot via accessibility service
+    final base64Image = await _accessibility.captureScreenshot();
     if (base64Image != null) {
       // Simple hash (length-based for now)
       _lastScreenshotHash = 'ss_${base64Image.length}_${DateTime.now().millisecondsSinceEpoch}';
@@ -470,10 +470,7 @@ class CommandHandler {
   // ========================
 
   Future<CommandResponse> _handleScreenshot(Command command) async {
-    if (!_shizuku.isAuthorized) {
-      return CommandResponse(id: command.id, success: false, error: 'Shizuku not authorized');
-    }
-    final base64Image = await _shizuku.captureScreenshot();
+    final base64Image = await _accessibility.captureScreenshot();
     if (base64Image != null) {
       return CommandResponse(id: command.id, success: true, data: {'image': base64Image, 'format': 'png'});
     }
