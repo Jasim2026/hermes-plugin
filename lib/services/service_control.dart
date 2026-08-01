@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 import 'package:flutter/services.dart';
+import '../models/command.dart';
 import 'websocket_server.dart';
 import 'command_handler.dart';
 import 'accessibility_bridge.dart';
@@ -52,7 +53,7 @@ class ServiceControl {
 
       // Write command
       final cmdFile = File('$_controlDir/$_controlFile');
-      await cmdFile.writeText(command);
+      await cmdFile.writeAsString(command);
 
       // Poll for response (max 5 seconds)
       final respFile = File('$_controlDir/$_responseFile');
