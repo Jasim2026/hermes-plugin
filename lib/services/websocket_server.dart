@@ -1,11 +1,10 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
-import 'package:web_socket_channel/web_socket_channel.dart';
 import '../models/command.dart';
 
 /// Callback type for command handling
-typedef CommandHandler = Future<CommandResponse> Function(Command command);
+typedef CommandCallback = Future<CommandResponse> Function(Command command);
 
 /// Local WebSocket server that Hermes connects to
 class WebSocketServer {
@@ -13,8 +12,8 @@ class WebSocketServer {
   static const String host = '127.0.0.1';
 
   HttpServer? _server;
-  final Map<String, WebSocketChannel> _clients = {};
-  CommandHandler? _handler;
+  final Map<String, WebSocket> _clients = {};
+  CommandCallback? _handler;
   int _port = defaultPort;
   bool _running = false;
 
@@ -27,7 +26,7 @@ class WebSocketServer {
   Stream<ServerEvent> get events => _eventController.stream;
 
   /// Start the WebSocket server
-  Future<void> start({int port = defaultPort, CommandHandler? handler}) async {
+  Future<void> start({int port = defaultPort, CommandCallback? handler}) async {
     _port = port;
     _handler = handler;
 
@@ -59,27 +58,26 @@ class WebSocketServer {
     final clientId = request.uri.queryParameters['client'] ??
         'client_${DateTime.now().millisecondsSinceEpoch}';
 
-    final channel = WebSocketChannel(socket);
-    _clients[clientId] = channel;
+    _clients[clientId] = socket;
     _eventController.add(ServerEvent(
       type: 'client_connected',
       clientId: clientId,
     ));
 
-    channel.stream.listen(
+    socket.listen(
       (data) async {
         try {
           final json = jsonDecode(data.toString()) as Map<String, dynamic>;
           final command = Command.fromJson(json);
           final response = await _handleCommand(command);
-          channel.sink.add(jsonEncode(response.toJson()));
+          socket.add(jsonEncode(response.toJson()));
         } catch (e) {
           final errorResponse = CommandResponse(
             id: '',
             success: false,
             error: 'Invalid command: $e',
           );
-          channel.sink.add(jsonEncode(errorResponse.toJson()));
+          socket.add(jsonEncode(errorResponse.toJson()));
         }
       },
       onDone: () {
@@ -115,7 +113,7 @@ class WebSocketServer {
   void broadcast(Map<String, dynamic> message) {
     final encoded = jsonEncode(message);
     for (final client in _clients.values) {
-      client.sink.add(encoded);
+      client.add(encoded);
     }
   }
 
@@ -123,7 +121,7 @@ class WebSocketServer {
   Future<void> stop() async {
     _running = false;
     for (final client in _clients.values) {
-      await client.sink.close();
+      await client.close();
     }
     _clients.clear();
     await _server?.close();
