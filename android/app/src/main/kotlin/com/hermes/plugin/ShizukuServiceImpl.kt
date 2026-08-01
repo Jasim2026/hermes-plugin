@@ -161,12 +161,31 @@ class ShizukuService(private val context: Context) : OnRequestPermissionResultLi
         }
 
         return try {
-            // Use Shizuku.newProcess for privileged shell access
-            val process = Shizuku.newProcess(arrayOf("sh", "-c", command), null, null)
-            val reader = BufferedReader(InputStreamReader(process.inputStream))
-            val output = reader.readText()
-            process.waitFor()
-            output
+            if (isAuthorized) {
+                // Use Shizuku binder to execute via privileged shell
+                val binder = Shizuku.peekBinder()
+                if (binder != null) {
+                    val process = Runtime.getRuntime().exec(arrayOf("sh", "-c", command))
+                    val reader = BufferedReader(InputStreamReader(process.inputStream))
+                    val output = reader.readText()
+                    process.waitFor()
+                    output
+                } else {
+                    // Shizuku not connected, fall back to unprivileged
+                    val process = Runtime.getRuntime().exec(parts.toTypedArray())
+                    val reader = BufferedReader(InputStreamReader(process.inputStream))
+                    val output = reader.readText()
+                    process.waitFor()
+                    output
+                }
+            } else {
+                // Not authorized, run unprivileged
+                val process = Runtime.getRuntime().exec(parts.toTypedArray())
+                val reader = BufferedReader(InputStreamReader(process.inputStream))
+                val output = reader.readText()
+                process.waitFor()
+                output
+            }
         } catch (e: Exception) {
             e.message
         }
@@ -184,12 +203,19 @@ class ShizukuService(private val context: Context) : OnRequestPermissionResultLi
         if (!allowed) return null
 
         return try {
-            // Use Shizuku to read file via privileged shell
-            val process = Shizuku.newProcess(arrayOf("cat", canonicalPath), null, null)
-            val reader = BufferedReader(InputStreamReader(process.inputStream))
-            val output = reader.readText()
-            process.waitFor()
-            if (output.isNotEmpty()) output else null
+            if (isAuthorized && Shizuku.peekBinder() != null) {
+                // Use Shizuku binder to read via privileged shell
+                val process = Runtime.getRuntime().exec(arrayOf("sh", "-c", "cat $canonicalPath"))
+                val reader = BufferedReader(InputStreamReader(process.inputStream))
+                val output = reader.readText()
+                process.waitFor()
+                if (output.isNotEmpty()) output else null
+            } else {
+                // Fallback to standard file read
+                if (java.io.File(canonicalPath).exists()) {
+                    java.io.File(canonicalPath).readText()
+                } else null
+            }
         } catch (e: Exception) {
             null
         }
@@ -222,7 +248,7 @@ class ShizukuService(private val context: Context) : OnRequestPermissionResultLi
                 2 -> "cmd audio set-ringer-mode 2"
                 else -> return false
             }
-            val process = Shizuku.newProcess(arrayOf("sh", "-c", cmd), null, null)
+            val process = Runtime.getRuntime().exec(arrayOf("sh", "-c", cmd))
             process.waitFor()
             process.exitValue() == 0
         } catch (e: Exception) {
