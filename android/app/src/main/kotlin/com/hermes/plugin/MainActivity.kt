@@ -60,6 +60,10 @@ class MainActivity : FlutterActivity() {
                     "checkNotificationPermission" -> result.success(isNotificationPermissionGranted())
                     "requestNotificationPermission" -> requestNotificationPermission(result)
 
+                    // Storage permission
+                    "checkStoragePermission" -> result.success(isStoragePermissionGranted())
+                    "requestStoragePermission" -> requestStoragePermission(result)
+
                     // Tier 1
                     "getAppState" -> result.success(getAppState())
                     "getDisplayInfo" -> result.success(getDisplayInfo())
@@ -299,6 +303,38 @@ class MainActivity : FlutterActivity() {
             val granted = grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED
             notificationPermissionResult?.success(granted)
             notificationPermissionResult = null
+        }
+    }
+
+    // ========================
+    // STORAGE PERMISSION (MANAGE_EXTERNAL_STORAGE)
+    // ========================
+
+    private fun isStoragePermissionGranted(): Boolean {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) return true
+        return android.os.Environment.isExternalStorageManager()
+    }
+
+    private fun requestStoragePermission(result: io.flutter.plugin.common.MethodChannel.Result) {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) { result.success(true); return }
+        if (isStoragePermissionGranted()) { result.success(true); return }
+        try {
+            val intent = Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION).apply {
+                data = Uri.fromParts("package", packageName, null)
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            }
+            startActivity(intent)
+            result.success(false) // user must manually grant in settings
+        } catch (e: Exception) {
+            // Fallback: open all files access settings
+            try {
+                val intent = Intent(Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION)
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                startActivity(intent)
+                result.success(false)
+            } catch (e2: Exception) {
+                result.success(false)
+            }
         }
     }
 

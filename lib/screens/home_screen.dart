@@ -26,6 +26,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   bool _accessibilityDone = false;
   bool _notificationDone = false;
   bool _shizukuDone = false;
+  bool _storageDone = false;
   bool _permissionModalDismissed = false;
 
   // Colors
@@ -116,11 +117,13 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     final accessibilityEnabled = await serviceControl.accessibility.isEnabled();
     final notificationEnabled = await serviceControl.isNotificationPermissionGranted();
     final shizukuAuthorized = await serviceControl.shizuku.checkPermission();
+    final storageGranted = await serviceControl.isStoragePermissionGranted();
 
     _accessibilityDone = accessibilityEnabled;
     _appInfoDone = accessibilityEnabled;
     _notificationDone = notificationEnabled;
     _shizukuDone = shizukuAuthorized;
+    _storageDone = storageGranted;
 
     final allRequiredDone = _appInfoDone && _accessibilityDone && _notificationDone;
 
@@ -211,6 +214,15 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                       onTap: () async {
                     final granted = await serviceControl.requestShizukuPermission();
                     setDialogState(() => _shizukuDone = granted);
+                  }),
+                  const SizedBox(height: 8),
+                  _permItem(setDialogState, 'Files', 'Required — read/write storage access',
+                      Icons.folder_outlined, _storageDone,
+                      onTap: () async {
+                    await serviceControl.requestStoragePermission();
+                    // Re-check after returning from settings
+                    final granted = await serviceControl.isStoragePermissionGranted();
+                    setDialogState(() => _storageDone = granted);
                   }),
 
                   const SizedBox(height: 24),
@@ -850,6 +862,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   Future<void> _refreshStatus() async {
     final enabled = await serviceControl.accessibility.isEnabled();
     final shizukuAuth = await serviceControl.shizuku.checkPermission();
+    final storageAuth = await serviceControl.isStoragePermissionGranted();
     setState(() {
       serviceControl.accessibilityEnabled = enabled;
       // Only update if newly granted — never overwrite true with false
@@ -858,6 +871,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       if (enabled) _appInfoDone = true;
       // For Shizuku: always update from actual check (can go true→false if revoked)
       _shizukuDone = shizukuAuth;
+      _storageDone = storageAuth;
     });
   }
 }

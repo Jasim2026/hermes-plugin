@@ -98,6 +98,22 @@ class ServiceControl {
     }
   }
 
+  Future<bool> isStoragePermissionGranted() async {
+    try {
+      return await _lifecycleChannel.invokeMethod('checkStoragePermission') ?? false;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  Future<bool> requestStoragePermission() async {
+    try {
+      return await _lifecycleChannel.invokeMethod('requestStoragePermission') ?? false;
+    } catch (e) {
+      return false;
+    }
+  }
+
   void dispose() {
     _server.stop();
     _accessibility.dispose();
