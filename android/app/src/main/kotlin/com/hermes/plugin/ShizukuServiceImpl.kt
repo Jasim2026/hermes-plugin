@@ -52,7 +52,7 @@ class ShizukuService(private val context: Context) : OnRequestPermissionResultLi
         channel?.setMethodCallHandler { call, result ->
             when (call.method) {
                 "checkShizukuRunning" -> result.success(checkShizukuRunning())
-                "checkShizukuPermission" -> result.success(isAuthorized)
+                "checkShizukuPermission" -> result.success(checkShizukuPermissionDirect())
                 "requestPermission" -> {
                     requestPermission()
                     result.success(true)
@@ -106,6 +106,14 @@ class ShizukuService(private val context: Context) : OnRequestPermissionResultLi
     private fun checkShizukuRunning(): Boolean {
         return try {
             Shizuku.pingBinder()
+        } catch (e: Exception) {
+            false
+        }
+    }
+
+    private fun checkShizukuPermissionDirect(): Boolean {
+        return try {
+            Shizuku.checkSelfPermission() == android.content.pm.PackageManager.PERMISSION_GRANTED
         } catch (e: Exception) {
             false
         }

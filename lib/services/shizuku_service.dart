@@ -26,10 +26,28 @@ class ShizukuService {
       _connected = await _channel.invokeMethod('checkShizukuRunning');
       if (_connected) {
         _authorized = await _channel.invokeMethod('checkShizukuPermission');
+      } else {
+        _authorized = false;
       }
     } catch (e) {
       _connected = false;
       _authorized = false;
+    }
+  }
+
+  /// Re-check Shizuku permission (independent of cached state)
+  Future<bool> checkPermission() async {
+    try {
+      _connected = await _channel.invokeMethod('checkShizukuRunning');
+      if (_connected) {
+        _authorized = await _channel.invokeMethod('checkShizukuPermission');
+      } else {
+        // Shizuku might not be running yet — try anyway
+        _authorized = await _channel.invokeMethod('checkShizukuPermission');
+      }
+      return _authorized;
+    } catch (e) {
+      return false;
     }
   }
 

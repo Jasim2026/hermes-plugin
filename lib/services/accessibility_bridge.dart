@@ -176,6 +176,24 @@ class AccessibilityBridge {
     }
   }
 
+  /// Turn screen on via accessibility
+  Future<bool> screenOn() async {
+    try {
+      return await _channel.invokeMethod('screenOn');
+    } catch (e) {
+      return false;
+    }
+  }
+
+  /// Turn screen off via accessibility
+  Future<bool> screenOff() async {
+    try {
+      return await _channel.invokeMethod('screenOff');
+    } catch (e) {
+      return false;
+    }
+  }
+
   /// Open app by package name
   Future<bool> openApp(String packageName) async {
     try {

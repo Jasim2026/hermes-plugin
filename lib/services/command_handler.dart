@@ -596,15 +596,31 @@ class CommandHandler {
   }
 
   Future<CommandResponse> _handleScreenOn(Command command) async {
-    if (!_shizuku.isAuthorized) return CommandResponse(id: command.id, success: false, error: 'Shizuku not authorized');
-    final success = await _shizuku.setScreenState(true);
-    return CommandResponse(id: command.id, success: success, data: success ? {'screen': 'on'} : null, error: success ? null : 'Screen on failed');
+    final success = await _accessibility.screenOn();
+    if (success) {
+      return CommandResponse(id: command.id, success: true, data: {'screen': 'on', 'via': 'accessibility'});
+    }
+    if (_shizuku.isAuthorized) {
+      final fallback = await _shizuku.setScreenState(true);
+      return CommandResponse(id: command.id, success: fallback,
+          data: fallback ? {'screen': 'on', 'via': 'shizuku'} : null,
+          error: fallback ? null : 'Screen on failed (both accessibility and Shizuku)');
+    }
+    return CommandResponse(id: command.id, success: false, error: 'Screen on failed: accessibility not available, Shizuku not authorized');
   }
 
   Future<CommandResponse> _handleScreenOff(Command command) async {
-    if (!_shizuku.isAuthorized) return CommandResponse(id: command.id, success: false, error: 'Shizuku not authorized');
-    final success = await _shizuku.setScreenState(false);
-    return CommandResponse(id: command.id, success: success, data: success ? {'screen': 'off'} : null, error: success ? null : 'Screen off failed');
+    final success = await _accessibility.screenOff();
+    if (success) {
+      return CommandResponse(id: command.id, success: true, data: {'screen': 'off', 'via': 'accessibility'});
+    }
+    if (_shizuku.isAuthorized) {
+      final fallback = await _shizuku.setScreenState(false);
+      return CommandResponse(id: command.id, success: fallback,
+          data: fallback ? {'screen': 'off', 'via': 'shizuku'} : null,
+          error: fallback ? null : 'Screen off failed (both accessibility and Shizuku)');
+    }
+    return CommandResponse(id: command.id, success: false, error: 'Screen off failed: accessibility not available, Shizuku not authorized');
   }
 
   Future<CommandResponse> _handleOpenApp(Command command) async {
@@ -838,14 +854,14 @@ class CommandHandler {
       'response': '{"success":true}',
     },
     'screen_on': {
-      'desc': 'Turn screen on (KEYCODE_WAKEUP).',
+      'desc': 'Turn screen on. Uses accessibility first, falls back to Shizuku.',
       'params': 'None',
-      'response': '{"success":true}',
+      'response': '{"success":true,"data":{"screen":"on","via":"accessibility"}}',
     },
     'screen_off': {
-      'desc': 'Turn screen off (KEYCODE_SLEEP).',
+      'desc': 'Turn screen off. Uses accessibility first, falls back to Shizuku.',
       'params': 'None',
-      'response': '{"success":true}',
+      'response': '{"success":true,"data":{"screen":"off","via":"accessibility"}}',
     },
 
     // ── APPS ──

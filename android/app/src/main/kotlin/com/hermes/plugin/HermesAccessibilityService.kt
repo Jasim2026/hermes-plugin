@@ -85,6 +85,8 @@ class HermesAccessibilityService : AccessibilityService() {
                     val pkg = call.argument<String>("packageName") ?: ""
                     result.success(openAppByPackage(pkg))
                 }
+                "screenOn" -> result.success(screenOn())
+                "screenOff" -> result.success(screenOff())
                 else -> result.notImplemented()
             }
         }
@@ -236,6 +238,36 @@ class HermesAccessibilityService : AccessibilityService() {
                 "packageName" to resolveInfo.activityInfo.packageName,
                 "appName" to resolveInfo.loadLabel(packageManager).toString()
             )
+        }
+    }
+
+    private fun screenOn(): Boolean {
+        return try {
+            val pm = getSystemService(POWER_SERVICE) as android.os.PowerManager
+            if (pm.isInteractive) return true
+            @Suppress("DEPRECATION")
+            val wakeLock = pm.newWakeLock(
+                android.os.PowerManager.FULL_WAKE_LOCK or
+                android.os.PowerManager.ACQUIRE_AFTER_DIMS,
+                "hermes:screen_on"
+            )
+            wakeLock.acquire(3000L)
+            wakeLock.release()
+            true
+        } catch (e: Exception) {
+            false
+        }
+    }
+
+    private fun screenOff(): Boolean {
+        return try {
+            val pm = getSystemService(POWER_SERVICE) as android.os.PowerManager
+            if (!pm.isInteractive) return true
+            @Suppress("DEPRECATION")
+            pm.goToSleep(android.os.SystemClock.uptimeMillis())
+            true
+        } catch (e: Exception) {
+            false
         }
     }
 
