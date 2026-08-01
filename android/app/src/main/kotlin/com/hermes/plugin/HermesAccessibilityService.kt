@@ -115,7 +115,7 @@ class HermesAccessibilityService : AccessibilityService() {
                                         handler.post { channel?.invokeMethod("screenshotError", e.message) }
                                     }
                                 }
-                                override fun onError(errorCode: Int) {
+                                override fun onFailure(errorCode: Int) {
                                     handler.post { channel?.invokeMethod("screenshotError", "errorCode: $errorCode") }
                                 }
                             }
