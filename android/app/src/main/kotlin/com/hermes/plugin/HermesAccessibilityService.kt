@@ -241,14 +241,13 @@ class HermesAccessibilityService : AccessibilityService() {
         }
     }
 
+    @Suppress("DEPRECATION")
     private fun screenOn(): Boolean {
         return try {
             val pm = getSystemService(POWER_SERVICE) as android.os.PowerManager
             if (pm.isInteractive) return true
-            @Suppress("DEPRECATION")
             val wakeLock = pm.newWakeLock(
-                android.os.PowerManager.FULL_WAKE_LOCK or
-                android.os.PowerManager.ACQUIRE_AFTER_DIMS,
+                android.os.PowerManager.FULL_WAKE_LOCK,
                 "hermes:screen_on"
             )
             wakeLock.acquire(3000L)
@@ -259,12 +258,13 @@ class HermesAccessibilityService : AccessibilityService() {
         }
     }
 
+    @Suppress("DEPRECATION")
     private fun screenOff(): Boolean {
         return try {
             val pm = getSystemService(POWER_SERVICE) as android.os.PowerManager
             if (!pm.isInteractive) return true
-            @Suppress("DEPRECATION")
-            pm.goToSleep(android.os.SystemClock.uptimeMillis())
+            val method = pm.javaClass.getMethod("goToSleep", Long::class.java)
+            method.invoke(pm, android.os.SystemClock.uptimeMillis())
             true
         } catch (e: Exception) {
             false
