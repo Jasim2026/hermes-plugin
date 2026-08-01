@@ -50,7 +50,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
-      _checkPermissions();
+      // Don't re-check permissions if modal was already dismissed (user granted them)
+      // Only refresh UI state (server, accessibility status)
       _refreshStatus();
     }
   }
@@ -832,9 +833,11 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     final shizukuAuth = await serviceControl.shizuku.checkPermission();
     setState(() {
       serviceControl.accessibilityEnabled = enabled;
-      _accessibilityDone = enabled;
-      _appInfoDone = enabled;
-      _shizukuDone = shizukuAuth;
+      // Only update if newly granted — never overwrite true with false
+      // (prevents flaky system checks from un-ticking granted permissions)
+      if (enabled) _accessibilityDone = true;
+      if (enabled) _appInfoDone = true;
+      if (shizukuAuth) _shizukuDone = true;
     });
   }
 }

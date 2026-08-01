@@ -120,10 +120,6 @@ class ShizukuService(private val context: Context) : OnRequestPermissionResultLi
     }
 
     fun requestPermission() {
-        if (Shizuku.shouldShowRequestPermissionRationale()) {
-            // User denied permanently
-            return
-        }
         Shizuku.requestPermission(PERMISSION_REQUEST_CODE)
     }
 
@@ -165,8 +161,8 @@ class ShizukuService(private val context: Context) : OnRequestPermissionResultLi
         }
 
         return try {
-            // Use List<String> exec (no shell) — prevents injection
-            val process = Runtime.getRuntime().exec(parts.toTypedArray())
+            // Use Shizuku.newProcess for privileged shell access
+            val process = Shizuku.newProcess(arrayOf("sh", "-c", command), null, null)
             val reader = BufferedReader(InputStreamReader(process.inputStream))
             val output = reader.readText()
             process.waitFor()
@@ -188,7 +184,12 @@ class ShizukuService(private val context: Context) : OnRequestPermissionResultLi
         if (!allowed) return null
 
         return try {
-            if (java.io.File(canonicalPath).exists()) canonicalPath else null
+            // Use Shizuku to read file via privileged shell
+            val process = Shizuku.newProcess(arrayOf("cat", canonicalPath), null, null)
+            val reader = BufferedReader(InputStreamReader(process.inputStream))
+            val output = reader.readText()
+            process.waitFor()
+            if (output.isNotEmpty()) output else null
         } catch (e: Exception) {
             null
         }
@@ -215,18 +216,16 @@ class ShizukuService(private val context: Context) : OnRequestPermissionResultLi
 
     private fun setRingerMode(mode: Int): Boolean {
         return try {
-            // Use Shizuku shell command for ringer mode (needs elevated privileges)
             val cmd = when (mode) {
-                0 -> "cmd audio set-ringer-mode 0"  // silent
-                1 -> "cmd audio set-ringer-mode 1"  // vibrate
-                2 -> "cmd audio set-ringer-mode 2"  // normal
+                0 -> "cmd audio set-ringer-mode 0"
+                1 -> "cmd audio set-ringer-mode 1"
+                2 -> "cmd audio set-ringer-mode 2"
                 else -> return false
             }
-            val process = Runtime.getRuntime().exec(cmd.trim().split("\\s+".toRegex()).toTypedArray())
+            val process = Shizuku.newProcess(arrayOf("sh", "-c", cmd), null, null)
             process.waitFor()
             process.exitValue() == 0
         } catch (e: Exception) {
-            // Fallback to AudioManager (may fail without DND permission)
             try {
                 val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
                 audioManager.ringerMode = mode
