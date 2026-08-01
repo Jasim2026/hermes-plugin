@@ -19,10 +19,10 @@ class Command {
   }
 
   Map<String, dynamic> toJson() => {
-    'id': id,
-    'command': command,
-    'params': params,
-  };
+        'id': id,
+        'command': command,
+        'params': params,
+      };
 }
 
 /// Response sent back to Hermes
@@ -40,15 +40,16 @@ class CommandResponse {
   });
 
   Map<String, dynamic> toJson() => {
-    'id': id,
-    'success': success,
-    if (data != null) 'data': data,
-    if (error != null) 'error': error,
-  };
+        'id': id,
+        'success': success,
+        if (data != null) 'data': data,
+        if (error != null) 'error': error,
+      };
 }
 
 /// Supported command types
 class Commands {
+  // Existing
   static const String screenshot = 'screenshot';
   static const String tap = 'tap';
   static const String longPress = 'long_press';
@@ -71,4 +72,25 @@ class Commands {
   static const String getDeviceInfo = 'get_device_info';
   static const String getInstalledApps = 'get_installed_apps';
   static const String ping = 'ping';
+
+  // Tier 1
+  static const String getAppState = 'get_app_state';
+  static const String getDisplayInfo = 'get_display_info';
+  static const String scaleCoords = 'scale_coords';
+
+  // Tier 2
+  static const String batch = 'batch';
+  static const String setWebhook = 'set_webhook';
+  static const String clearWebhook = 'clear_webhook';
+  static const String uiAutomatorDump = 'ui_automator_dump';
+  static const String getInputMethods = 'get_input_methods';
+  static const String setInputMethod = 'set_input_method';
+  static const String clearInputField = 'clear_input_field';
+
+  // Tier 3
+  static const String health = 'health';
+  static const String getBatteryInfo = 'get_battery_info';
+  static const String streamEvents = 'stream_events';
+  static const String stopStreamEvents = 'stop_stream_events';
+  static const String screenshotCached = 'screenshot_cached';
 }

@@ -17,6 +17,27 @@ class ShizukuService(private val context: Context) : OnRequestPermissionResultLi
     companion object {
         private const val CHANNEL = "com.hermes.plugin/shizuku"
         private const val PERMISSION_REQUEST_CODE = 1001
+
+        // Command allowlist — only pre-approved commands
+        private val ALLOWED_COMMANDS = setOf(
+            "screencap", "pm", "settings", "input", "dumpsys",
+            "am", "wm", "getprop", "ls", "cat", "id", "whoami",
+            "rm"
+        )
+
+        // Path allowlist — only app-specific directories
+        private val ALLOWED_READ_PATHS = setOf(
+            "/sdcard/hermes_plugin/",
+            "/sdcard/hermes_screenshot.png"
+        )
+
+        // Paths that rm is allowed to delete
+        private val ALLOWED_RM_PATHS = setOf(
+            "/sdcard/hermes_screenshot.png"
+        )
+
+        // Shell metacharacters that enable injection
+        private val SHELL_META = setOf(';', '|', '&', '$', '`', '(', ')', '{', '}', '<', '>', '\n', '\r')
     }
 
     private var channel: MethodChannel? = null
@@ -108,8 +129,33 @@ class ShizukuService(private val context: Context) : OnRequestPermissionResultLi
     }
 
     private fun execCommand(command: String): String? {
+        // Validate: reject shell metacharacters
+        if (command.any { it in SHELL_META }) {
+            return "ERROR:forbidden characters in command"
+        }
+
+        // Validate: first token must be an allowed command
+        val parts = command.trim().split("\\s+".toRegex())
+        if (parts.isEmpty()) return "ERROR:empty command"
+        if (parts[0] !in ALLOWED_COMMANDS) {
+            return "ERROR:command not allowed: ${parts[0]}"
+        }
+
+        // Validate rm: target must be in allowed paths
+        if (parts[0] == "rm" && parts.size >= 2) {
+            val target = try {
+                java.io.File(parts[1]).canonicalPath
+            } catch (e: Exception) {
+                return "ERROR:invalid path"
+            }
+            if (target !in ALLOWED_RM_PATHS) {
+                return "ERROR:rm not allowed for: $target"
+            }
+        }
+
         return try {
-            val process = Runtime.getRuntime().exec(arrayOf("sh", "-c", command))
+            // Use List<String> exec (no shell) — prevents injection
+            val process = Runtime.getRuntime().exec(parts.toTypedArray())
             val reader = BufferedReader(InputStreamReader(process.inputStream))
             val output = reader.readText()
             process.waitFor()
@@ -120,8 +166,18 @@ class ShizukuService(private val context: Context) : OnRequestPermissionResultLi
     }
 
     private fun readFile(path: String): ByteArray? {
+        // Validate path — must be in allowed directories
+        val canonicalPath = try {
+            java.io.File(path).canonicalPath
+        } catch (e: Exception) {
+            return null
+        }
+
+        val allowed = ALLOWED_READ_PATHS.any { canonicalPath.startsWith(it) }
+        if (!allowed) return null
+
         return try {
-            java.io.File(path).readBytes()
+            java.io.File(canonicalPath).readBytes()
         } catch (e: Exception) {
             null
         }

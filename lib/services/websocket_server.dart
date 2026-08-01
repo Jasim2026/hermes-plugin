@@ -117,6 +117,13 @@ class WebSocketServer {
     }
   }
 
+  /// Broadcast raw string to all clients (for streaming events, batch progress)
+  void broadcastString(String json) {
+    for (final client in _clients.values) {
+      client.add(json);
+    }
+  }
+
   /// Stop the server
   Future<void> stop() async {
     _running = false;

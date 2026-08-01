@@ -50,7 +50,8 @@ class ShizukuService {
       final result = await _channel.invokeMethod('execCommand', {
         'command': 'screencap -p /sdcard/hermes_screenshot.png',
       });
-      if (result == true) {
+      final output = result?.toString() ?? '';
+      if (!output.startsWith('ERROR:')) {
         // Read the screenshot file
         final bytes = await _channel.invokeMethod('readFile', {
           'path': '/sdcard/hermes_screenshot.png',
@@ -139,15 +140,10 @@ class ShizukuService {
   /// Turn screen on/off via input event
   Future<bool> setScreenState(bool on) async {
     try {
-      if (on) {
-        return await _channel.invokeMethod('execCommand', {
-          'command': 'input keyevent KEYCODE_WAKEUP',
-        });
-      } else {
-        return await _channel.invokeMethod('execCommand', {
-          'command': 'input keyevent KEYCODE_SLEEP',
-        });
-      }
+      final cmd = on ? 'input keyevent KEYCODE_WAKEUP' : 'input keyevent KEYCODE_SLEEP';
+      final result = await _channel.invokeMethod('execCommand', {'command': cmd});
+      final output = result?.toString() ?? '';
+      return !output.startsWith('ERROR:');
     } catch (e) {
       return false;
     }

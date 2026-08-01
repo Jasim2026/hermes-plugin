@@ -1,13 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'screens/home_screen.dart';
-import 'services/websocket_server.dart';
-import 'services/accessibility_bridge.dart';
-import 'services/shizuku_service.dart';
+import 'services/service_control.dart';
+
+late ServiceControl serviceControl;
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
   SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
+
+  // Initialize service control (listens for start/stop from Kotlin)
+  serviceControl = ServiceControl();
+  serviceControl.init();
+
   runApp(const HermesPluginApp());
 }
 
