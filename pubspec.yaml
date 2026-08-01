@@ -25,4 +25,3 @@ flutter:
     - family: Inter
       fonts:
         - asset: assets/fonts/Inter-Variable.ttf
-          weight: 100-900
