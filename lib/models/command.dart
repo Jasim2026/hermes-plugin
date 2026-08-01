@@ -93,4 +93,5 @@ class Commands {
   static const String streamEvents = 'stream_events';
   static const String stopStreamEvents = 'stop_stream_events';
   static const String screenshotCached = 'screenshot_cached';
+  static const String help = 'help';
 }

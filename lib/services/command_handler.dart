@@ -125,6 +125,10 @@ class CommandHandler {
         case Commands.screenshotCached:
           return await _handleScreenshotCached(command);
 
+        // Help
+        case Commands.help:
+          return _handleHelp(command);
+
         default:
           return CommandResponse(
             id: command.id,
@@ -656,4 +660,277 @@ class CommandHandler {
     final apps = await _accessibility.getInstalledApps();
     return CommandResponse(id: command.id, success: true, data: {'apps': apps, 'count': apps.length});
   }
+
+  // ========================
+  // HELP
+  // ========================
+
+  CommandResponse _handleHelp(Command command) {
+    final target = command.params['command'] as String?;
+
+    if (target != null && target.isNotEmpty) {
+      final entry = _helpDocs[target];
+      if (entry == null) {
+        return CommandResponse(
+          id: command.id,
+          success: false,
+          error: 'Unknown command: $target',
+        );
+      }
+      return CommandResponse(id: command.id, success: true, data: entry);
+    }
+
+    return CommandResponse(
+      id: command.id,
+      success: true,
+      data: {
+        'version': 'hermes-plugin-v1',
+        'totalCommands': _helpDocs.length,
+        'usage': 'Send {"id":"1","command":"help","params":{"command":"<name>"}} for detailed help on a specific command.',
+        'commands': _helpDocs.keys.toList(),
+      },
+    );
+  }
+
+  static const Map<String, dynamic> _helpDocs = {
+    // ── BASIC ──
+    'ping': {
+      'desc': 'Check if the plugin is alive and reachable.',
+      'params': {},
+      'response': {'success': true, 'data': 'pong'},
+    },
+    'help': {
+      'desc': 'Show this help, or detailed help for a specific command.',
+      'params': {'command?': 'string — command name to get detailed help for'},
+      'response': 'List of all commands, or detailed info for the target command.',
+    },
+
+    // ── SCREEN & UI ──
+    'screenshot': {
+      'desc': 'Capture a full screenshot via Shizuku screencap.',
+      'params': {},
+      'response': {'success': true, 'data': {'image': '<base64>', 'format': 'png'}},
+      'requires': 'Shizuku authorized',
+    },
+    'screenshot_cached': {
+      'desc': 'Capture screenshot with hash-based caching. Reuses previous screenshot unless content changed or force=true.',
+      'params': {'force?': 'bool — force new screenshot even if cached'},
+      'response': {'image': '<base64>', 'hash': 'ss_<length>_<ts>', 'cached': true/false, 'format': 'png'},
+    },
+    'get_screen_content': {
+      'desc': 'Get text content and node tree of the current screen via accessibility.',
+      'params': {},
+      'response': {'content': '<full text>', 'nodes': [...]},
+    },
+    'get_display_info': {
+      'desc': 'Get display metrics (resolution, density, DPI).',
+      'params': {},
+      'response': {'widthPx': int, 'heightPx': int, 'density': double, 'densityDpi': int, 'scaledDensity': double, 'xDpi': double, 'yDpi': double, 'androidSdk': int},
+    },
+    'ui_automator_dump': {
+      'desc': 'Dump the full UI hierarchy as XML via uiautomator.',
+      'params': {},
+      'response': {'xml': '<hierarchy XML>', 'success': true},
+    },
+    'get_app_state': {
+      'desc': 'Get the currently focused app (package, activity, task description).',
+      'params': {},
+      'response': {'packageName': 'com.example', 'className': '...', 'taskDescription': '...', 'baseActivity': '...'},
+    },
+
+    // ── GESTURES ──
+    'tap': {
+      'desc': 'Tap at screen coordinates.',
+      'params': {'x': 'double (required)', 'y': 'double (required)'},
+      'response': {'tapped': true, 'x': double, 'y': double},
+    },
+    'long_press': {
+      'desc': 'Long press at screen coordinates.',
+      'params': {'x': 'double (required)', 'y': 'double (required)'},
+      'response': {'longPressed': true, 'x': double, 'y': double},
+    },
+    'swipe': {
+      'desc': 'Swipe from (x1,y1) to (x2,y2).',
+      'params': {
+        'x1': 'double (required)', 'y1': 'double (required)',
+        'x2': 'double (required)', 'y2': 'double (required)',
+        'durationMs?': 'int — default 300',
+      },
+      'response': {'swiped': true, 'from': [x1, y1], 'to': [x2, y2], 'durationMs': int},
+    },
+    'scroll': {
+      'desc': 'Scroll in a direction from a center point.',
+      'params': {
+        'x': 'double (required) — center x', 'y': 'double (required) — center y',
+        'direction?': 'string — "up"|"down"|"left"|"right" (default: "down")',
+      },
+      'response': {'scrolled': true, 'direction': 'down', 'x': double, 'y': double},
+    },
+    'scale_coords': {
+      'desc': 'Convert agent-space coordinates to device pixels using display density.',
+      'params': {'x': 'double (required)', 'y': 'double (required)'},
+      'response': {'scaledX': double, 'scaledY': double, 'density': double},
+    },
+
+    // ── INPUT ──
+    'type_text': {
+      'desc': 'Type text into the currently focused field.',
+      'params': {'text': 'string (required)'},
+      'response': {'typed': true, 'length': int},
+    },
+    'clear_input_field': {
+      'desc': 'Clear the currently focused input field.',
+      'params': {},
+      'response': {'success': true},
+    },
+    'find_element': {
+      'desc': 'Find a UI element by text and return its node info.',
+      'params': {'text': 'string (required) — text to search for'},
+      'response': {'nodeId': '...', 'text': '...', 'bounds': {...}, 'clickable': bool},
+    },
+    'click_element': {
+      'desc': 'Click a UI element by its node ID (from find_element).',
+      'params': {'nodeId': 'string (required)'},
+      'response': {'clicked': 'nodeId'},
+    },
+
+    // ── INPUT METHODS ──
+    'get_input_methods': {
+      'desc': 'List all enabled input methods (keyboards) and the current one.',
+      'params': {},
+      'response': {'currentIme': 'com.example/.ime', 'enabledImes': [...], 'count': int},
+    },
+    'set_input_method': {
+      'desc': 'Open the input method settings screen.',
+      'params': {'imeId': 'string — IME ID (currently opens settings, doesn\'t switch directly)'},
+      'response': true,
+    },
+
+    // ── NAVIGATION ──
+    'press_back': {
+      'desc': 'Press the system back button.',
+      'params': {},
+      'response': {'success': true},
+    },
+    'press_home': {
+      'desc': 'Press the system home button.',
+      'params': {},
+      'response': {'success': true},
+    },
+    'press_recent': {
+      'desc': 'Open the recent apps / overview screen.',
+      'params': {},
+      'response': {'success': true},
+    },
+
+    // ── MEDIA ──
+    'volume_up': {
+      'desc': 'Increase volume by one step.',
+      'params': {},
+      'response': {'volume': int},
+    },
+    'volume_down': {
+      'desc': 'Decrease volume by one step.',
+      'params': {},
+      'response': {'volume': int},
+    },
+    'set_volume': {
+      'desc': 'Set volume to an absolute level.',
+      'params': {
+        'stream': 'int — 0=call, 1=ring, 2=music, 3=alarm, 4=notification (default: 3=music)',
+        'level': 'int (required)',
+      },
+      'response': {'volume': int},
+    },
+    'set_mode': {
+      'desc': 'Set ringer mode.',
+      'params': {'mode': 'int (required) — 0=silent, 1=vibrate, 2=normal'},
+      'response': {'success': true},
+    },
+    'screen_on': {
+      'desc': 'Turn screen on (send KEYCODE_WAKEUP).',
+      'params': {},
+      'response': {'success': true},
+    },
+    'screen_off': {
+      'desc': 'Turn screen off (send KEYCODE_SLEEP).',
+      'params': {},
+      'response': {'success': true},
+    },
+
+    // ── APPS ──
+    'open_app': {
+      'desc': 'Launch an app by package name.',
+      'params': {'package': 'string (required) — e.g. "com.android.chrome"'},
+      'response': {'success': true, 'package': '...'},
+    },
+    'get_installed_apps': {
+      'desc': 'List installed app package names.',
+      'params': {},
+      'response': {'packages': ['com.example', ...], 'count': int} (via Shizuku) or {'apps': [...], 'count': int} (via accessibility),
+    },
+    'get_device_info': {
+      'desc': 'Get device model, manufacturer, Android version, SDK. Requires Shizuku.',
+      'params': {},
+      'response': {'model': 'Pixel 7', 'manufacturer': 'Google', 'device': 'panther', 'androidVersion': '14', 'sdkVersion': '34', 'product': 'panther'},
+      'requires': 'Shizuku authorized',
+    },
+
+    // ── TIER 1: BATCH ──
+    'batch': {
+      'desc': 'Execute multiple commands sequentially in one request. Responses stream back per sub-command.',
+      'params': {
+        'commands': 'List<Map> (required) — each with {command, params} or {command, params, id}',
+        'verbose?': 'bool — if true, stream individual results as they complete (default: false)',
+      },
+      'response': {
+        'batchId': 'batch_<ts>',
+        'totalCommands': int,
+        'completed': int,
+        'failed': int,
+        'elapsed': 'duration string',
+        'results': [{CommandResponse}, ...],
+      },
+    },
+
+    // ── TIER 2: WEBHOOK ──
+    'set_webhook': {
+      'desc': 'Set a URL to POST events to (screen changes, accessibility events).',
+      'params': {'url': 'string (required) — HTTPS endpoint'},
+      'response': {'webhook': 'url'},
+    },
+    'clear_webhook': {
+      'desc': 'Remove the active webhook.',
+      'params': {},
+      'response': {'webhook': null},
+    },
+    'stream_events': {
+      'desc': 'Start streaming accessibility events over the WebSocket (real-time).',
+      'params': {},
+      'response': {'streaming': true, 'message': 'Accessibility events will stream via WS'},
+    },
+    'stop_stream_events': {
+      'desc': 'Stop streaming accessibility events.',
+      'params': {},
+      'response': {'streaming': false},
+    },
+
+    // ── TIER 3: HEALTH ──
+    'health': {
+      'desc': 'Full health check: display, battery, memory, uptime.',
+      'params': {},
+      'response': {
+        'timestamp': 'ISO 8601',
+        'display': '{widthPx, heightPx, density, ...}',
+        'battery': '{level, isCharging, status}',
+        'memory': '{totalMem, availMem, usedMem, lowMemory, threshold}',
+        'uptime': 'ms since epoch',
+      },
+    },
+    'get_battery_info': {
+      'desc': 'Get battery level and charging status.',
+      'params': {},
+      'response': {'level': int, 'isCharging': bool, 'status': 'charging|low|discharging'},
+    },
+  };
 }
