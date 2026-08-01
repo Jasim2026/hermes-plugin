@@ -170,22 +170,12 @@ class ShizukuService(private val context: Context) : OnRequestPermissionResultLi
 
         return try {
             if (isAuthorized) {
-                // Use Shizuku binder to execute via privileged shell
-                val binder = Shizuku.peekBinder()
-                if (binder != null) {
-                    val process = Runtime.getRuntime().exec(arrayOf("sh", "-c", command))
-                    val reader = BufferedReader(InputStreamReader(process.inputStream))
-                    val output = reader.readText()
-                    process.waitFor()
-                    output
-                } else {
-                    // Shizuku not connected, fall back to unprivileged
-                    val process = Runtime.getRuntime().exec(parts.toTypedArray())
-                    val reader = BufferedReader(InputStreamReader(process.inputStream))
-                    val output = reader.readText()
-                    process.waitFor()
-                    output
-                }
+                // Shizuku authorized — run via shell
+                val process = Runtime.getRuntime().exec(arrayOf("sh", "-c", command))
+                val reader = BufferedReader(InputStreamReader(process.inputStream))
+                val output = reader.readText()
+                process.waitFor()
+                output
             } else {
                 // Not authorized, run unprivileged
                 val process = Runtime.getRuntime().exec(parts.toTypedArray())
@@ -211,8 +201,8 @@ class ShizukuService(private val context: Context) : OnRequestPermissionResultLi
         if (!allowed) return null
 
         return try {
-            if (isAuthorized && Shizuku.peekBinder() != null) {
-                // Use Shizuku binder to read via privileged shell
+            if (isAuthorized) {
+                // Authorized — read via shell
                 val process = Runtime.getRuntime().exec(arrayOf("sh", "-c", "cat $canonicalPath"))
                 val reader = BufferedReader(InputStreamReader(process.inputStream))
                 val output = reader.readText()
