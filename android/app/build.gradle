@@ -38,16 +38,6 @@ android {
         }
     }
 
-    // Only build for arm64 (most modern Android devices)
-    splits {
-        abi {
-            enable true
-            reset()
-            include "arm64-v8a"
-            universalApk false
-        }
-    }
-
     // Reduce APK size by compressing native libs
     packagingOptions {
         doNotStrip "*/arm64-v8a/*.so"
