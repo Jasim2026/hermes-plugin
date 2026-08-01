@@ -63,8 +63,6 @@ class MainActivity : FlutterActivity() {
     }
 
     private val binderDeadListener = rikka.shizuku.Shizuku.OnBinderDeadListener {
-        shizukuService?.let {
-            // Shizuku died
-        }
+        // Shizuku died
     }
 }

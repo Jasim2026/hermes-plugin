@@ -2,7 +2,7 @@ allprojects {
     repositories {
         google()
         mavenCentral()
-        maven { url = uri("https://maven.pkg.github.com/rikkapp/figma-exporter") }
+        maven { url 'https://jitpack.io' }
     }
 }
 
