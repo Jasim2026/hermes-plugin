@@ -95,8 +95,7 @@ class MainActivity : FlutterActivity() {
                 "packageName" to topActivity?.packageName,
                 "className" to topActivity?.className,
                 "taskDescription" to task?.taskDescription?.label?.toString(),
-                "baseActivity" to task?.baseActivity?.className,
-                "numberOfTasks" to am.runningTaskCount
+                "baseActivity" to task?.baseActivity?.className
             )
         } catch (e: Exception) {
             mapOf("error" to e.message)

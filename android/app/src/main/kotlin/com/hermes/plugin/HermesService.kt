@@ -11,6 +11,7 @@ import android.os.FileObserver
 import android.os.IBinder
 import androidx.core.app.NotificationCompat
 import io.flutter.embedding.engine.FlutterEngine
+import io.flutter.embedding.engine.dart.DartExecutor
 import io.flutter.plugin.common.MethodChannel
 import java.io.File
 import java.util.concurrent.CountDownLatch
@@ -224,7 +225,6 @@ class HermesService : Service() {
                 addEngineLifecycleListener(object : io.flutter.embedding.engine.FlutterEngine.EngineLifecycleListener {
                     override fun onEngineWillDestroy() {}
                     override fun onPreEngineRestart() {}
-                    override fun onEngineWillDetach() {}
                 })
             }
 
